@@ -1,0 +1,11 @@
+# Data and Models
+data/raw/
+data/processed/
+models/
+*.pth
+*.pt
+
+# Python caches
+__pycache__/
+*.pyc
+.env
