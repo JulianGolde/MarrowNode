@@ -35,7 +35,7 @@ To overcome the medical annotation bottleneck and ensure long-term scalability, 
   A highly optimized Convolutional Neural Network (e.g., MobileNetV3 or ResNet) trained on isolated, expertly annotated single-cell datasets (such as the MLL dataset). It processes the cropped outputs from Stage 1 to classify the specific hematological lineage (e.g., Myeloblast, Promyelocyte, Lymphocyte).
 
 - **Hardware Deployment Constraint:** Both stages, along with the color normalization pipeline (CLAHE), are engineered to run sequentially and offline on standard consumer hardware via INT8 quantization.
-- 
+  
 ## 3. # Standard Operating Procedure (SOP): MarrowNode Pipeline
 
 ## Objective
