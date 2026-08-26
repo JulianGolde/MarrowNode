@@ -89,11 +89,47 @@ Establish a reproducible, scalable, and modular machine learning pipeline for bo
 
 ## 5. Roadmap
 
-- [ ] Initialize repository and environment.
-- [ ] Configure data ingestion and color normalization scripts.
-- [ ] Establish baseline segmentation model architecture.
-- [ ] Implement local network ingestion protocols.
+- [ X] Initialize repository and environment.
+- [X ] Configure data ingestion and color normalization scripts.
+- [ X] Xstablish baseline segmentation model architecture.
+- [ ] IXplement local network ingestion protocols.
 - [ ] Build and test the Human-in-the-loop clinical interface.
 
+# MarrowNode: Experiment & Training Log
+
+## Experiment 01: Stage 2 Classifier Baseline (Transfer Learning)
+**Date:** 2026-08-26
+**Objective:** Establish a performance baseline for the Stage 2 classification module using a frozen pre-trained architecture.
+
+### Hardware & Environment
+- **GPU:** NVIDIA RTX 4080 Super (16GB VRAM)
+- **CPU:** AMD Ryzen 7 5800X
+- **Framework:** PyTorch (CUDA enabled)
+
+### Dataset Configuration
+- **Source:** MLL Bone Marrow Morphology Dataset
+- **Classes (4):** Lymphocyte, Monocyte, Myeloblast, Neutrophil
+- **Distribution:** ~15,000 images per class (Total: ~60,000)
+- **Split:** Train (70%), Validation (15%), Test (15%)
+- **Preprocessing:** CLAHE on LAB color space (Giemsa normalization).
+
+### Model Architecture & Hyperparameters
+- **Backbone:** MobileNetV3-Small (Weights: IMAGENET1K_V1)
+- **Strategy:** Transfer Learning (Feature extractor frozen, only the final linear classification head is active).
+- **Batch Size:** 32
+- **Learning Rate:** 0.001 (Adam Optimizer)
+- **Loss Function:** CrossEntropyLoss
+- **Epochs:** 10
+
+### Results & Metrics
+- **Total Training Time:** ~21 minutes (~125s per epoch).
+- **Peak Performance:** Epoch 5
+  - **Train Loss:** 0.4499 | **Train Accuracy:** 0.8277
+  - **Val Loss:** 0.4308 | **Val Accuracy:** 0.8438
+
+### Engineering Notes & Analysis
+The model achieved an 84.38% validation accuracy by merely tuning the final classification head, demonstrating the high quality of the color normalization pipeline and the robustness of the dataset. 
+The slight oscillation in validation metrics (Epoch 6 to 10) indicates that the frozen feature extractor has reached its representational limit (the "glass ceiling" of transfer learning). 
+**Next Step:** Implement a full-network fine-tuning phase with a reduced learning rate to surpass the 90% accuracy threshold.
 ---
 *Disclaimer: MarrowNode is a Computer-Assisted Intervention (CAI) tool for research purposes. It does not provide autonomous medical diagnoses.*
