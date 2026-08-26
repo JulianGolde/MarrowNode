@@ -21,35 +21,63 @@ Bone marrow aspirate analysis presents extreme morphological complexity, hampere
 
 MarrowNode resolves this bottleneck by delivering a decentralized, edge-optimized software pipeline capable of operating entirely offline, processing optical microscopy images captured via standard consumer adapters.
 
-## 2. System Specifications
+## 2. System Architecture: The Two-Stage Pipeline
 
-- **Local Inference:** Offline execution on consumer-grade x86/ARM hardware utilizing INT8/FP16 model quantization via ONNX Runtime and TensorRT.
-- **Multi-Protocol Ingestion:** Modular communication pipeline accepting incoming diagnostic images via direct USB (UVC protocol), Bluetooth Low Energy (BLE), and ad-hoc local Wi-Fi networks (air-gapped).
-- **Instance Segmentation:** Advanced CNN architecture (e.g., YOLO-seg / Mask R-CNN) engineered to resolve dense object occlusion and overlapping cellular boundaries.
-- **Class Imbalance Optimization:** Implementation of specialized loss functions (e.g., Focal Loss, Dice Loss) to address the distribution skew between prevalent erythrocytes and rare nucleated lineages.
-- **Human-in-the-Loop Integration:** Local web application enabling clinical validation, manual mask correction, and automated Myeloid-to-Erythroid (M:E) ratio calculation in compliance with WHO guidelines.
+To overcome the medical annotation bottleneck and ensure long-term scalability, MarrowNode implements a decoupled, two-stage inference architecture. This modularity allows the system to scale to new pathologies without retraining the heavy segmentation backbone.
 
-## 3. Standard Operating Procedure (SOP)
+- **Stage 1: Agnostic Instance Segmentation (The Finder)**
+  A lightweight segmentation model (e.g., YOLOv8-seg) trained strictly on a binary class (Nucleated Cell vs. Background). Its sole purpose is to handle occlusion, draw polygons, and locate targets within dense bone marrow smears.
+  
+- **The Bridge: Automated Isolation**
+  An intermediary algorithmic step that computes the bounding box from the segmentation polygon, crops the raw image, and isolates the detected cell on a standardized background (masking out neighboring artifacts).
 
-The development lifecycle follows a strict machine learning engineering protocol:
+- **Stage 2: Expert Classification (The Classifier)**
+  A highly optimized Convolutional Neural Network (e.g., MobileNetV3 or ResNet) trained on isolated, expertly annotated single-cell datasets (such as the MLL dataset). It processes the cropped outputs from Stage 1 to classify the specific hematological lineage (e.g., Myeloblast, Promyelocyte, Lymphocyte).
 
-### Phase 1: Data Engineering
-- **Acquisition:** Aggregation of public bone marrow aspirate datasets.
-- **Preprocessing:** Application of color deconvolution algorithms to normalize Giemsa stain variations across different illumination conditions.
-- **Splitting:** Strict enforcement of Train/Validation/Hold-out Test splits to prevent data leakage.
+- **Hardware Deployment Constraint:** Both stages, along with the color normalization pipeline (CLAHE), are engineered to run sequentially and offline on standard consumer hardware via INT8 quantization.
+- 
+## 3. # Standard Operating Procedure (SOP): MarrowNode Pipeline
 
-### Phase 2: Model Training
-- **Hardware:** Local training on NVIDIA RTX 4080 Super (16GB VRAM).
-- **Optimization:** Hyperparameter tuning for learning rate, batch size, and loss function weights.
-- **Metrics:** Evaluation using Mean Intersection over Union (mIoU) and mean Average Precision (mAP).
+## Objective
+Establish a reproducible, scalable, and modular machine learning pipeline for bone marrow aspirate analysis, utilizing a two-stage approach (Segmentation -> Classification).
 
-### Phase 3: Edge Optimization
-- **Quantization:** Post-training quantization (PTQ) to reduce memory footprint.
-- **Benchmarking:** CPU/Edge GPU inference latency stress testing.
+## Phase 1: Data Engineering & Standardization
+1.  **Color Normalization Pipeline:**
+    - Input: Raw RGB images from optical microscopes.
+    - Process: Convert to LAB color space, apply CLAHE on the L-channel, convert back to RGB.
+    - Output: Illumination-standardized images.
+2.  **Dataset Preparation (Stage 2 - Classification):**
+    - Ingest the MLL dataset (isolated cells).
+    - Apply color normalization.
+    - Split dataset into Train (70%), Validation (15%), and Test (15%).
+3.  **Dataset Preparation (Stage 1 - Segmentation):**
+    - Acquire raw bone marrow smear images (dense clusters).
+    - Annotate a binary class (Nucleated Cell) using bounding polygons.
+    - Format annotations to YOLO-seg standard.
 
-### Phase 4: System Integration
-- **Backend:** Implementation of multi-protocol network listeners (USB/BT/WLAN).
-- **Frontend:** Deployment of the clinical validation GUI.
+## Phase 2: Model Training & Validation
+1.  **Train the Classifier (Stage 2):**
+    - Architecture: MobileNetV3 (optimized for edge).
+    - Task: Multi-class classification on the normalized MLL dataset.
+    - Success Metric: F1-Score > 0.90 on the Test set.
+2.  **Train the Segmenter (Stage 1):**
+    - Architecture: YOLOv8-seg (Nano or Small version).
+    - Task: Binary instance segmentation on dense smears.
+    - Success Metric: mIoU (Mean Intersection over Union) > 0.85.
+
+## Phase 3: Software Integration (Pipeline Orchestrator)
+1.  **Develop the Bridge Script:**
+    - Receive polygon coordinates from the Segmenter.
+    - Calculate tight bounding boxes.
+    - Crop and mask the region of interest (ROI) from the original image.
+    - Feed the isolated ROI to the Classifier.
+2.  **Object-Oriented Encapsulation:**
+    - Wrap the entire sequential logic (Normalization -> Segmenter -> Cropper -> Classifier) into a single, robust Python class (`MarrowPipeline`).
+
+## Phase 4: Edge Optimization & UI
+1.  **Quantization:** Convert PyTorch model weights (`.pt`) to ONNX Runtime format utilizing FP16 or INT8 precision.
+2.  **Latency Benchmarking:** Ensure end-to-end inference time is under 2000ms per full microscopic field on CPU.
+3.  **Interface Deployment:** Launch the local web interface (Streamlit/FastAPI) to allow clinical users to upload images and review predictions.
 
 ## 4. Technology Stack
 
