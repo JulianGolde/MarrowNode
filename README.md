@@ -127,6 +127,18 @@ Establish a reproducible, scalable, and modular machine learning pipeline for bo
   - **Train Loss:** 0.4499 | **Train Accuracy:** 0.8277
   - **Val Loss:** 0.4308 | **Val Accuracy:** 0.8438
 
+
+## Experiment 02: Stage 2 Fine-Tuning & Uncertainty Estimation
+**Date:** 2026-08-26 / 2026-08-27
+**Action:** Unfroze MobileNetV3 backbone and applied a low learning rate (1e-4).
+**Result:** Broke the 84% glass ceiling. The model is now highly accurate. 
+**Architecture Update:** Implemented a Human-in-the-Loop safeguard in the Orchestrator. Any prediction with < 85% confidence is flagged as "Review Required" to mitigate the MLL dataset's weak labels (AI-generated ground truth).
+
+## Data Engineering: Stage 1 (YOLOv8 Segmentation)
+**Date:** 2026-08-27
+**Dataset:** SegPC-2021 (ISBI Challenge).
+**Action:** Built a robust conversion pipeline to transform clinical instance segmentation masks (.bmp) with multiple instances per image into YOLO normalized polygon format.
+
 ### Engineering Notes & Analysis
 The model achieved an 84.38% validation accuracy by merely tuning the final classification head, demonstrating the high quality of the color normalization pipeline and the robustness of the dataset. 
 The slight oscillation in validation metrics (Epoch 6 to 10) indicates that the frozen feature extractor has reached its representational limit (the "glass ceiling" of transfer learning). 
