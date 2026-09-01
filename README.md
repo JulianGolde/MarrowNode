@@ -7,8 +7,41 @@
 
 > Offline, full-stack decision-support ecosystem for instance segmentation and classification of bone marrow aspirates in low-resource clinical environments.
 
-![MarrowNode Architecture Diagram](docs/.png)
-*(Placeholder: Insert an architecture diagram showing the Stage 1 -> Stage 2 flow here)*
+```mermaid
+graph TD
+    A[Raw Bone Marrow Image] -->|Optical Microscope| B(Color Normalization: CLAHE)
+    
+    subgraph Stage 1: Segmentation
+    B --> C{YOLOv8-Nano}
+    C -->|Detects Target ROI| D[Polygon Generation]
+    end
+    
+    subgraph The Bridge
+    D --> E[Bounding Box Extraction]
+    E --> F[Tight Crop / Natural Background]
+    end
+    
+    subgraph Stage 2: Classification
+    F --> G{MobileNetV3}
+    G -->|Multi-class Inference| H[Logits & Softmax]
+    end
+    
+    subgraph Clinical Safety
+    H --> I{Confidence ≥ 85%?}
+    I -->|Yes| J[Confident Prediction]
+    I -->|No| K[Flagged: Review Required]
+    end
+    
+    J --> L((Streamlit UI))
+    K --> L((Streamlit UI))
+    
+    classDef stage1 fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
+    classDef stage2 fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px;
+    classDef safety fill:#fff3e0,stroke:#e65100,stroke-width:2px;
+    
+    class C,D stage1;
+    class G,H stage2;
+    class I,J,K safety;
 
 ## Table of Contents
 1. [Clinical Context & Architecture](#1-clinical-context--architecture)
