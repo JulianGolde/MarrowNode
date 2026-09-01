@@ -7,7 +7,7 @@
 
 > Offline, full-stack decision-support ecosystem for instance segmentation and classification of bone marrow aspirates in low-resource clinical environments.
 
-![MarrowNode Architecture Diagram](docs/images/architecture_diagram_placeholder.png)
+![MarrowNode Architecture Diagram](docs/example.png)
 *(Placeholder: Insert an architecture diagram showing the Stage 1 -> Stage 2 flow here)*
 
 ## Table of Contents
