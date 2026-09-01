@@ -55,3 +55,11 @@ The slight oscillation in validation metrics (Epoch 6 to 10) indicates that the 
 - **mAP50-95:** 77.5%
 - **Inference Speed:** 0.9ms per image
 **Architecture Update:** Replaced the mocked segmentation function in `orchestrator.py` with the live YOLOv8 model. The pipeline is now fully operational end-to-end.
+
+
+
+  ## Experiment 05: Edge Optimization & ONNX Quantization (Phase 4)
+**Date:** 2026-09-01
+**Action:** Exported both Stage 1 (YOLOv8) and Stage 2 (MobileNetV3) models to ONNX format with FP16 (Half-Precision) quantization. 
+**Architecture Update:** Completely rewrote the `MarrowPipeline` orchestrator to remove the heavy PyTorch dependency. Inference and image preprocessing are now handled exclusively by `onnxruntime` and pure `NumPy`.
+**Result:** The system is now fully decoupled from GPU requirements and ready for low-resource CPU deployment. Latency benchmarks pending.
