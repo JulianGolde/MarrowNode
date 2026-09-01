@@ -6,7 +6,6 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 
 > Offline, full-stack decision-support ecosystem for instance segmentation and classification of bone marrow aspirates in low-resource clinical environments.
-
 ```mermaid
 graph TD
     A[Raw Bone Marrow Image] -->|Optical Microscope| B(Color Normalization: CLAHE)
