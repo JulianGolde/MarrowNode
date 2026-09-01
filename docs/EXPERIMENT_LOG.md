@@ -58,7 +58,7 @@ The slight oscillation in validation metrics (Epoch 6 to 10) indicates that the 
 
 
 
-  ## Experiment 05: Edge Optimization & ONNX Quantization (Phase 4)
+  ## Experiment 04: Edge Optimization & ONNX Quantization (Phase 4)
 **Date:** 2026-09-01
 **Action:** Exported both Stage 1 (YOLOv8) and Stage 2 (MobileNetV3) models to ONNX format with FP16 (Half-Precision) quantization. 
 **Architecture Update:** Completely rewrote the `MarrowPipeline` orchestrator to remove the heavy PyTorch dependency. Inference and image preprocessing are now handled exclusively by `onnxruntime` and pure `NumPy`.
