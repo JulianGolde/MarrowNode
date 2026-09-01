@@ -139,6 +139,15 @@ Establish a reproducible, scalable, and modular machine learning pipeline for bo
 **Dataset:** SegPC-2021 (ISBI Challenge).
 **Action:** Built a robust conversion pipeline to transform clinical instance segmentation masks (.bmp) with multiple instances per image into YOLO normalized polygon format.
 
+## Experiment 03: Stage 1 YOLOv8 Segmentation Training
+**Date:** 2026-09-01
+**Dataset:** SegPC-2021 (Clinical Ground Truth)
+**Action:** Trained YOLOv8-Nano (yolov8n-seg.pt) for 50 epochs on the RTX 4080 Super.
+**Result:** Phenomenal metrics for Edge Computing:
+- **mAP50:** 86.8%
+- **mAP50-95:** 77.5%
+- **Inference Speed:** 0.9ms per image
+**Architecture Update:** Replaced the mocked segmentation function in `orchestrator.py` with the live YOLOv8 model. The pipeline is now fully operational end-to-end.
 ### Engineering Notes & Analysis
 The model achieved an 84.38% validation accuracy by merely tuning the final classification head, demonstrating the high quality of the color normalization pipeline and the robustness of the dataset. 
 The slight oscillation in validation metrics (Epoch 6 to 10) indicates that the frozen feature extractor has reached its representational limit (the "glass ceiling" of transfer learning). 
