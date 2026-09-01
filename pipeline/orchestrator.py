@@ -1,144 +1,172 @@
 """
-MarrowNode - Core Pipeline Orchestrator
-Handles the end-to-end inference flow: Normalization -> Segmentation -> Cropping -> Classification.
+MarrowNode - Core Pipeline Orchestrator (Final)
+Integrates Stage 1 (YOLOv8 Segmentation) and Stage 2 (MobileNetV3 Classification).
+Features Human-in-the-loop thresholding for clinical safety.
 """
 
+import os
 import cv2
-import numpy as np
-import logging
 import time
-from typing import List, Dict, Any, Tuple
+import logging
+import torch
+import torch.nn as nn
+import numpy as np
+from torchvision import models, transforms
+from PIL import Image
+from typing import List, Dict, Any
+from ultralytics import YOLO
 
-# Configure logging for output tracking
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class MarrowPipeline:
-    def __init__(self, segmenter_path: str, classifier_path: str, conf_threshold: float = 0.5):
-        """
-        Initializes the MarrowNode two-stage pipeline.
+    def __init__(self, yolo_path: str, classifier_path: str, safety_threshold: float = 0.85):
+        self.safety_threshold = safety_threshold
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.classes = ["Lymphocyte", "Monocyte", "Myeloblast", "Neutrophil"]
         
-        Args:
-            segmenter_path: Path to the trained YOLO-seg weights.
-            classifier_path: Path to the trained Classifier (MobileNet/ResNet) weights.
-            conf_threshold: Minimum confidence score for segmentation detection.
-        """
-        self.conf_threshold = conf_threshold
+        logging.info(f"Initializing MarrowNode Pipeline on {self.device}...")
         
-        logging.info("Initializing MarrowNode Pipeline...")
-        # TODO: Load PyTorch/ONNX models here using the provided paths
-        self.segmenter = self._load_segmenter(segmenter_path)
+        # 1. Load Preprocessing Transforms
+        self.transform = transforms.Compose([
+            transforms.Resize((224, 224)),
+            transforms.ToTensor(),
+            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+        ])
+        
+        # 2. Load Models
+        self.yolo_model = YOLO(yolo_path)
         self.classifier = self._load_classifier(classifier_path)
-        logging.info("Models loaded successfully.")
+        logging.info("Both Stage 1 and Stage 2 models loaded successfully.")
 
-    def _load_segmenter(self, path: str):
-        # Placeholder for loading YOLOv8-seg model
-        return None
-
-    def _load_classifier(self, path: str):
-        # Placeholder for loading MobileNetV3/ResNet model
-        return None
+    def _load_classifier(self, path: str) -> nn.Module:
+        if not os.path.exists(path):
+            raise FileNotFoundError(f"Classifier weights not found at {path}")
+        model = models.mobilenet_v3_small(weights=None)
+        in_features = model.classifier[3].in_features
+        model.classifier[3] = nn.Linear(in_features, len(self.classes))
+        model.load_state_dict(torch.load(path, map_location=self.device))
+        model.to(self.device)
+        model.eval()
+        return model
 
     def _normalize_image(self, image_bgr: np.ndarray) -> np.ndarray:
-        """Applies CLAHE on the LAB color space to normalize illumination."""
         lab = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2LAB)
-        l_channel, a_channel, b_channel = cv2.split(lab)
-        
+        l, a, b = cv2.split(lab)
         clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-        cl = clahe.apply(l_channel)
-        
-        limg = cv2.merge((cl, a_channel, b_channel))
-        normalized_bgr = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
-        return normalized_bgr
+        cl = clahe.apply(l)
+        limg = cv2.merge((cl, a, b))
+        return cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
 
     def _run_segmentation(self, image: np.ndarray) -> List[np.ndarray]:
-        """
-        Runs the Stage 1 model to find nucleated cells.
-        Returns a list of polygons (contours) for detected cells.
-        """
-        # TODO: Replace with actual YOLO inference
-        # Mocking a detected polygon for structural demonstration
-        mock_polygon = np.array([[50, 50], [150, 50], [150, 150], [50, 150]])
-        return [mock_polygon]
+        """STAGE 1: Detects and extracts precise cell polygons using YOLOv8."""
+        results = self.yolo_model(image, verbose=False)
+        polygons = []
+        
+        if len(results) > 0 and results[0].masks is not None:
+            # YOLO returns coordinates. We convert them to integers for OpenCV.
+            for mask_coords in results[0].masks.xy:
+                if len(mask_coords) > 0:
+                    poly = np.array(mask_coords, dtype=np.int32)
+                    polygons.append(poly)
+                    
+        return polygons
 
     def _isolate_cells(self, image: np.ndarray, polygons: List[np.ndarray]) -> List[np.ndarray]:
-        """
-        The Bridge: Takes polygons, creates bounding boxes, and isolates the cell 
-        on a black background to remove neighboring noise.
-        """
+        """Masks everything outside the polygon and crops the bounding box."""
         isolated_crops = []
         for poly in polygons:
-            # 1. Create a blank mask and draw the filled polygon
             mask = np.zeros(image.shape[:2], dtype=np.uint8)
             cv2.fillPoly(mask, [poly], 255)
-            
-            # 2. Extract the cell using the mask (background becomes black)
             masked_image = cv2.bitwise_and(image, image, mask=mask)
             
-            # 3. Calculate bounding box to crop the exact region
             x, y, w, h = cv2.boundingRect(poly)
-            crop = masked_image[y:y+h, x:x+w]
+            # Add a tiny padding to avoid clipping the edges of the cell
+            padding = 5
+            x1, y1 = max(0, x - padding), max(0, y - padding)
+            x2, y2 = min(image.shape[1], x + w + padding), min(image.shape[0], y + h + padding)
             
-            isolated_crops.append(crop)
+            crop = masked_image[y1:y2, x1:x2]
+            # Ensure crop is not empty before adding
+            if crop.size > 0:
+                isolated_crops.append(crop)
             
         return isolated_crops
 
     def _run_classification(self, crops: List[np.ndarray]) -> List[Dict[str, Any]]:
-        """
-        Runs Stage 2 model on isolated cells to determine specific lineages.
-        """
+        """STAGE 2: Classifies each cell crop."""
         results = []
-        for crop in crops:
-            # TODO: Replace with actual MobileNetV3 inference
-            # Mock result
-            results.append({
-                "class_name": "Myeloblast",
-                "confidence": 0.92
-            })
+        if not crops:
+            return results
+            
+        with torch.no_grad():
+            for crop in crops:
+                crop_rgb = cv2.cvtColor(crop, cv2.COLOR_BGR2RGB)
+                pil_image = Image.fromarray(crop_rgb)
+                input_tensor = self.transform(pil_image).unsqueeze(0).to(self.device)
+                
+                output = self.classifier(input_tensor)
+                probabilities = torch.nn.functional.softmax(output[0], dim=0)
+                confidence, predicted_idx = torch.max(probabilities, 0)
+                
+                conf_score = confidence.item()
+                raw_class = self.classes[predicted_idx.item()]
+                
+                if conf_score < self.safety_threshold:
+                    final_class = "Review Required (Uncertain)"
+                    flagged = True
+                else:
+                    final_class = raw_class
+                    flagged = False
+                
+                results.append({
+                    "predicted_class": final_class,
+                    "raw_prediction": raw_class,
+                    "confidence": round(conf_score * 100, 2),
+                    "flagged_for_review": flagged
+                })
+                
         return results
 
     def process_image(self, image_path: str) -> Dict[str, Any]:
-        """
-        Main orchestration method. Executes the full pipeline on a raw image.
-        """
         start_time = time.time()
         logging.info(f"Processing image: {image_path}")
         
-        # Read image
         raw_image = cv2.imread(image_path)
         if raw_image is None:
-            raise FileNotFoundError(f"Could not read image at {image_path}")
+            raise ValueError(f"Image not found or unreadable: {image_path}")
             
-        # Step 0: Standardize
         norm_image = self._normalize_image(raw_image)
-        
-        # Step 1: Find Cells
         polygons = self._run_segmentation(norm_image)
-        logging.info(f"Detected {len(polygons)} nucleated cells.")
-        
-        # Bridge: Isolate Cells
         crops = self._isolate_cells(norm_image, polygons)
-        
-        # Step 2: Classify Lineages
         classifications = self._run_classification(crops)
         
-        end_time = time.time()
-        latency = (end_time - start_time) * 1000
-        logging.info(f"Pipeline executed in {latency:.2f} ms")
+        latency_ms = (time.time() - start_time) * 1000
+        logging.info(f"Pipeline executed in {latency_ms:.2f} ms")
         
         return {
             "status": "success",
-            "latency_ms": latency,
-            "cell_count": len(polygons),
-            "predictions": classifications
+            "latency_ms": round(latency_ms, 2),
+            "cells_detected": len(polygons),
+            "results": classifications
         }
 
-# --- Quick Test Execution ---
 if __name__ == "__main__":
-    # Create a dummy image for testing the orchestrator structure
-    dummy_image = np.zeros((500, 500, 3), dtype=np.uint8)
-    cv2.imwrite("dummy_test.jpg", dummy_image)
+    # Test file from our SegPC validation set
+    test_img = "data/raw/segpc/valid/x/106.bmp"
     
-    pipeline = MarrowPipeline(segmenter_path="dummy.pt", classifier_path="dummy.pt")
-    result = pipeline.process_image("dummy_test.jpg")
-    print("\nFinal Output JSON-like structure:")
-    print(result)
+    if os.path.exists(test_img):
+        # Note the path to the YOLO weights generated in your terminal
+        pipeline = MarrowPipeline(
+            yolo_path="runs/segment/models/yolo_marrow_seg/weights/best.pt", 
+            classifier_path="models/mobilenet_marrow_finetuned.pth", 
+            safety_threshold=0.85
+        )
+        report = pipeline.process_image(test_img)
+        
+        print("\n" + "="*40)
+        print("      FINAL PIPELINE REPORT")
+        print("="*40)
+        import json
+        print(json.dumps(report, indent=4))
+    else:
+        print(f"Please provide a valid image path to test.")
