@@ -7,7 +7,7 @@
 
 > Offline, full-stack decision-support ecosystem for instance segmentation and classification of bone marrow aspirates in low-resource clinical environments.
 
-![MarrowNode Architecture Diagram](docs/example.png)
+![MarrowNode Architecture Diagram](docs/.png)
 *(Placeholder: Insert an architecture diagram showing the Stage 1 -> Stage 2 flow here)*
 
 ## Table of Contents
@@ -72,7 +72,7 @@ Establish a reproducible, scalable, and modular machine learning pipeline for bo
 
 The system features a lightweight, open-source Streamlit dashboard tailored for hematologists. It operates entirely locally, ensuring patient data privacy (no cloud processing).
 
-![Streamlit Clinical Dashboard](docs/images/streamlit_ui_placeholder.png)
+![Streamlit Clinical Dashboard](docs/example.png)
 *(Placeholder: Insert a screenshot of the Streamlit dashboard processing a cell here)*
 
 **Key Features:**
