@@ -41,7 +41,7 @@ graph TD
     class C,D stage1;
     class G,H stage2;
     class I,J,K safety;
-
+````
 ## Table of Contents
 1. [Clinical Context & Architecture](#1-clinical-context--architecture)
 2. [System Specifications](#2-system-specifications)
