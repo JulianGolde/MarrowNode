@@ -73,7 +73,6 @@ Establish a reproducible, scalable, and modular machine learning pipeline for bo
 The system features a lightweight, open-source Streamlit dashboard tailored for hematologists. It operates entirely locally, ensuring patient data privacy (no cloud processing).
 
 ![Streamlit Clinical Dashboard](docs/example.png)
-*(Placeholder: Insert a screenshot of the Streamlit dashboard processing a cell here)*
 
 **Key Features:**
 - **Dual Mode Inference:** Users can upload a Full Smear (triggers Stage 1 + 2) or an Isolated Cell (bypasses YOLO to prevent Scale Shift issues on cropped datasets).
